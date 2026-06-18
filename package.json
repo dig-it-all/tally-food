@@ -1,0 +1,6 @@
+{
+  "name": "tally-voice-calorie-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Voice calorie tracker: speak your food, get remaining-calorie estimates and healthy suggestions."
+}

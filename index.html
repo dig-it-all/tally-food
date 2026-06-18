@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tally · voice calorie log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF1E9;
+    --panel:#FFFFFF;
+    --edge:#DEE3D6;
+    --ink:#1E241B;
+    --muted:#697063;
+    --green:#4E9D5B;
+    --green-deep:#2F7A45;
+    --green-soft:#E2EFDE;
+    --warm:#E08A3C;
+    --warm-soft:#F6E6D5;
+    --track:#E6EAE0;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1060px;margin:0 auto;padding:30px 20px 70px}
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+  .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px}
+  .brand .leaf{width:22px;height:22px;border-radius:0 50% 50% 50%;background:var(--green);transform:rotate(45deg)}
+  .limit-set{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:8px 12px}
+  .limit-set label{font-size:12px;color:var(--muted);letter-spacing:0.02em}
+  .limit-set input{width:74px;border:none;background:transparent;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--ink);outline:none;text-align:right}
+  .limit-set .u{font-size:12px;color:var(--muted)}
+
+  /* HERO gauge */
+  .hero{background:var(--panel);border:1px solid var(--edge);border-radius:20px;padding:26px 28px;margin-bottom:18px}
+  .hero-top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+  .remaining{display:flex;align-items:baseline;gap:10px}
+  .remaining .num{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:64px;line-height:0.9;letter-spacing:-0.03em;color:var(--green-deep)}
+  .remaining .num.over{color:var(--warm)}
+  .remaining .lab{font-size:14px;color:var(--muted)}
+  .hero-stats{display:flex;gap:22px;font-family:'JetBrains Mono',monospace}
+  .stat{text-align:right}
+  .stat .v{font-weight:700;font-size:17px}
+  .stat .k{font-size:11px;color:var(--muted);letter-spacing:0.04em;text-transform:uppercase;font-family:'Inter',sans-serif}
+
+  .gauge{height:18px;background:var(--track);border-radius:10px;overflow:hidden;display:flex;gap:2px;padding:0}
+  .seg{height:100%;transition:width .5s cubic-bezier(.4,0,.2,1)}
+  .gauge .over-fill{background:var(--warm)}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:780px){.grid{grid-template-columns:1fr}}
+
+  .panel{background:var(--panel);border:1px solid var(--edge);border-radius:18px;padding:22px;display:flex;flex-direction:column}
+  .panel-title{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:15px;margin-bottom:16px;display:flex;align-items:center;gap:9px}
+  .panel-title .dot{width:8px;height:8px;border-radius:50%}
+  .dot.v{background:var(--warm)}
+  .dot.l{background:var(--green)}
+
+  /* waveform */
+  .wave{display:flex;align-items:center;justify-content:center;gap:3px;height:48px;margin:0 0 14px}
+  .wave .bar{width:4px;height:5px;border-radius:2px;background:#D2D8CB;transition:background .2s}
+  .recording .wave .bar{background:var(--warm)}
+
+  .transcript{
+    min-height:80px;font-family:'Inter',sans-serif;font-size:15px;line-height:1.6;color:var(--ink);
+    background:var(--bg);border:1px solid var(--edge);border-radius:12px;padding:13px;outline:none;
+  }
+  .transcript:empty::before{content:"Say what you ate — e.g. \201Ctwo eggs, toast with butter, a coffee\201D";color:#9aa093}
+  .transcript:focus{border-color:var(--warm)}
+  .transcript .interim{color:var(--muted)}
+
+  .controls{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+  button{font-family:'Inter',sans-serif;font-weight:600;font-size:14px;border:none;border-radius:11px;padding:12px 16px;cursor:pointer;transition:transform .08s,background .2s,opacity .2s}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button:focus-visible{outline:2px solid var(--green-deep);outline-offset:2px}
+  .btn-rec{background:var(--warm);color:#fff;flex:1;min-width:120px}
+  .btn-rec.stop{background:#C7553F}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--edge)}
+  .btn-log{background:var(--green);color:#fff;width:100%;margin-top:12px}
+  .err{color:#C7553F;font-size:12.5px;margin-top:9px;min-height:1px}
+
+  /* log / receipt */
+  .logbox{flex:1;min-height:120px}
+  .empty{color:#9aa093;font-size:14px;text-align:center;padding:30px 10px}
+  .item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--edge);font-family:'JetBrains Mono',monospace;font-size:13.5px}
+  .item:last-child{border-bottom:none}
+  .item .nm{flex:1;font-family:'Inter',sans-serif;font-size:14px}
+  .item .cal{font-weight:700;color:var(--ink)}
+  .item .x{cursor:pointer;color:#b9bfb1;font-size:16px;line-height:1;padding:2px 4px;border-radius:6px}
+  .item .x:hover{color:#C7553F;background:var(--warm-soft)}
+  .total-row{display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:2px solid var(--edge);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px}
+
+  .suggest{margin-top:16px;background:var(--green-soft);border:1px solid #cfe2c9;border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.6;color:#234a2b}
+  .suggest .h{font-weight:600;display:flex;align-items:center;gap:7px;margin-bottom:6px;color:var(--green-deep)}
+  .suggest.hidden{display:none}
+
+  .loading{display:flex;align-items:center;gap:9px;color:var(--green-deep);font-size:14px;padding:6px 0}
+  .spinner{width:15px;height:15px;border:2px solid var(--green-soft);border-top-color:var(--green-deep);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .note{margin-top:24px;color:var(--muted);font-size:12px;line-height:1.6;border-top:1px solid var(--edge);padding-top:14px}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="leaf"></span>Tally</div>
+    <div class="limit-set">
+      <label for="limit">Daily target</label>
+      <input id="limit" type="number" min="0" step="50" value="2000" />
+      <span class="u">kcal</span>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-top">
+      <div class="remaining">
+        <span class="num" id="remNum">2000</span>
+        <span class="lab" id="remLab">calories left today</span>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><div class="v" id="consVal">0</div><div class="k">eaten</div></div>
+        <div class="stat"><div class="v" id="limVal">2000</div><div class="k">target</div></div>
+      </div>
+    </div>
+    <div class="gauge" id="gauge"></div>
+  </div>
+
+  <div class="grid">
+    <!-- VOICE -->
+    <section class="panel" id="voicePanel">
+      <div class="panel-title"><span class="dot v"></span>Say what you ate</div>
+      <div class="wave" id="wave"></div>
+      <div class="transcript" id="transcript" contenteditable="true" spellcheck="true"></div>
+      <div class="controls">
+        <button class="btn-rec" id="recBtn">● Start talking</button>
+        <button class="btn-ghost" id="clearBtn">Clear</button>
+      </div>
+      <button class="btn-log" id="logBtn">Log this food →</button>
+      <div class="err" id="voiceErr"></div>
+    </section>
+
+    <!-- LOG -->
+    <section class="panel">
+      <div class="panel-title"><span class="dot l"></span>Today's log</div>
+      <div class="logbox" id="logbox">
+        <div class="empty" id="emptyMsg">Nothing logged yet. Tell the app what you ate and it'll add it up.</div>
+      </div>
+      <div class="suggest hidden" id="suggest"></div>
+    </section>
+  </div>
+
+  <div class="note">
+    Calorie figures are AI estimates and will vary with real portion sizes and ingredients — treat them as a rough guide,
+    not exact counts. This tool isn't a substitute for advice from a doctor or registered dietitian.
+    Voice input works best in Chrome or Edge; you can also type into the box.
+  </div>
+</div>
+
+<script>
+// ---------- state ----------
+let entries = [];          // {name, calories}
+let limit = 2000;
+const limitInput = document.getElementById('limit');
+
+// ---------- waveform setup ----------
+const WAVE_BARS = 24;
+const waveEl = document.getElementById('wave');
+const bars=[];
+for(let i=0;i<WAVE_BARS;i++){const b=document.createElement('div');b.className='bar';waveEl.appendChild(b);bars.push(b);}
+
+// ---------- elements ----------
+const transcriptEl=document.getElementById('transcript');
+const recBtn=document.getElementById('recBtn');
+const clearBtn=document.getElementById('clearBtn');
+const logBtn=document.getElementById('logBtn');
+const voiceErr=document.getElementById('voiceErr');
+const voicePanel=document.getElementById('voicePanel');
+const logbox=document.getElementById('logbox');
+const emptyMsg=document.getElementById('emptyMsg');
+const suggestEl=document.getElementById('suggest');
+const remNum=document.getElementById('remNum');
+const remLab=document.getElementById('remLab');
+const consVal=document.getElementById('consVal');
+const limVal=document.getElementById('limVal');
+const gauge=document.getElementById('gauge');
+
+// ---------- speech ----------
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recognition=null, recognizing=false, finalText='';
+let audioCtx,analyser,micStream,rafId,dataArr;
+
+function escapeHtml(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+function buildRecognition(){
+  if(!SR) return null;
+  const r=new SR();
+  r.continuous=true;r.interimResults=true;r.lang=navigator.language||'en-US';
+  r.onresult=(e)=>{
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal) finalText+=t; else interim+=t;
+    }
+    transcriptEl.innerHTML=escapeHtml(finalText)+(interim?'<span class="interim">'+escapeHtml(interim)+'</span>':'');
+  };
+  r.onerror=(e)=>{
+    if(e.error==='not-allowed'||e.error==='service-not-allowed') voiceErr.textContent='Microphone blocked — type into the box instead, or allow mic access.';
+    else if(e.error==='no-speech') voiceErr.textContent='Didn\u2019t catch that — try again.';
+  };
+  r.onend=()=>{ if(recognizing){ try{r.start();}catch(_){} } };
+  return r;
+}
+
+async function startMeter(){
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const src=audioCtx.createMediaStreamSource(micStream);
+    analyser=audioCtx.createAnalyser();analyser.fftSize=64;src.connect(analyser);
+    dataArr=new Uint8Array(analyser.frequencyBinCount);drawMeter();return true;
+  }catch(_){return false;}
+}
+function drawMeter(){
+  if(!analyser)return;
+  analyser.getByteFrequencyData(dataArr);
+  for(let i=0;i<WAVE_BARS;i++){const v=dataArr[i%dataArr.length]/255;bars[i].style.height=(5+v*40).toFixed(0)+'px';}
+  rafId=requestAnimationFrame(drawMeter);
+}
+function stopMeter(){
+  if(rafId)cancelAnimationFrame(rafId);
+  if(micStream)micStream.getTracks().forEach(t=>t.stop());
+  if(audioCtx)audioCtx.close().catch(()=>{});
+  audioCtx=analyser=micStream=null;bars.forEach(b=>b.style.height='5px');
+}
+
+recBtn.addEventListener('click', async ()=>{
+  if(recognizing){stopRecording();return;}
+  voiceErr.textContent='';
+  finalText=transcriptEl.innerText;
+  if(finalText&&!finalText.endsWith(' '))finalText+=' ';
+  if(!SR){voiceErr.textContent='Voice typing isn\u2019t supported here — try Chrome/Edge, or type into the box.';return;}
+  recognition=buildRecognition();
+  const ok=await startMeter();
+  if(!ok)voiceErr.textContent='Couldn\u2019t reach the microphone — you can type instead.';
+  try{recognition.start();}catch(_){}
+  recognizing=true;voicePanel.classList.add('recording');
+  recBtn.textContent='■ Stop';recBtn.classList.add('stop');
+});
+function stopRecording(){
+  recognizing=false;
+  if(recognition){try{recognition.stop();}catch(_){}}
+  stopMeter();finalText=transcriptEl.innerText;
+  voicePanel.classList.remove('recording');
+  recBtn.textContent='● Start talking';recBtn.classList.remove('stop');
+}
+clearBtn.addEventListener('click',()=>{finalText='';transcriptEl.innerHTML='';voiceErr.textContent='';});
+transcriptEl.addEventListener('input',()=>{if(!recognizing)finalText=transcriptEl.innerText;});
+
+// ---------- limit ----------
+limitInput.addEventListener('input',()=>{
+  const v=parseInt(limitInput.value,10);
+  limit=isNaN(v)?0:v;
+  render();
+});
+
+// ---------- math + render ----------
+function consumed(){return entries.reduce((s,e)=>s+(e.calories||0),0);}
+function render(){
+  const cons=consumed();
+  const rem=limit-cons;
+  consVal.textContent=cons.toLocaleString();
+  limVal.textContent=limit.toLocaleString();
+  if(rem>=0){
+    remNum.textContent=rem.toLocaleString();
+    remNum.classList.remove('over');
+    remLab.textContent='calories left today';
+  }else{
+    remNum.textContent=Math.abs(rem).toLocaleString();
+    remNum.classList.add('over');
+    remLab.textContent='calories over target';
+  }
+  // gauge segments
+  gauge.innerHTML='';
+  const denom=Math.max(limit, cons, 1);
+  const segColors=['#E08A3C','#E8A055','#D98A4A','#EBB070','#D27E36'];
+  entries.forEach((e,i)=>{
+    const seg=document.createElement('div');
+    seg.className='seg'+(cons>limit?' over-fill':'');
+    seg.style.width=((e.calories/denom)*100)+'%';
+    if(cons<=limit) seg.style.background=segColors[i%segColors.length];
+    gauge.appendChild(seg);
+  });
+  // log list
+  if(entries.length===0){
+    logbox.innerHTML='<div class="empty">Nothing logged yet. Tell the app what you ate and it\u2019ll add it up.</div>';
+  }else{
+    let html='';
+    entries.forEach((e,i)=>{
+      html+='<div class="item"><span class="nm">'+escapeHtml(e.name)+'</span>'+
+            '<span class="cal">'+e.calories.toLocaleString()+'</span>'+
+            '<span class="x" data-i="'+i+'" title="Remove">\u00d7</span></div>';
+    });
+    html+='<div class="total-row"><span>Total eaten</span><span>'+cons.toLocaleString()+' kcal</span></div>';
+    logbox.innerHTML=html;
+    logbox.querySelectorAll('.x').forEach(x=>x.addEventListener('click',()=>{
+      entries.splice(parseInt(x.dataset.i,10),1);render();
+    }));
+  }
+}
+
+// ---------- log food via AI ----------
+logBtn.addEventListener('click', async ()=>{
+  if(recognizing) stopRecording();
+  const text=transcriptEl.innerText.trim();
+  if(!text){voiceErr.textContent='Say or type what you ate first.';return;}
+  voiceErr.textContent='';
+  logBtn.disabled=true;logBtn.textContent='Estimating…';
+
+  const prevConsumed=consumed();
+  const prompt=
+`You estimate calories from food descriptions. The user just ate the following (transcribed from voice):
+"""${text}"""
+
+Their daily target is ${limit} kcal. Before this they had already eaten ${prevConsumed} kcal today.
+
+Return ONLY valid JSON (no markdown, no code fences, no preamble) of this exact shape:
+{"items":[{"name":"short food name with rough portion","calories":0}],"suggestions":"2-3 short, friendly, non-judgmental sentences recommending specific healthy foods that fit comfortably within the calories they have remaining after this entry. If they are over target, gently suggest lighter options for the rest of the day."}
+
+Rules:
+- One object per distinct food/drink item.
+- "calories" is a whole number, your best average estimate for a typical portion.
+- If the text does not describe any food, return {"items":[],"suggestions":"I couldn't spot any food in that — try describing what you ate, like 'a turkey sandwich and an apple'."}`;
+
+  try{
+    const res=await fetch("/api/estimate",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({prompt:prompt})
+    });
+    const data=await res.json();
+    let raw=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+    raw=raw.replace(/```json/gi,'').replace(/```/g,'').trim();
+    const parsed=JSON.parse(raw);
+    const items=Array.isArray(parsed.items)?parsed.items:[];
+    if(items.length===0){
+      voiceErr.textContent=(parsed.suggestions||'No food found in that — try describing what you ate.');
+    }else{
+      items.forEach(it=>{
+        const cal=Math.max(0,Math.round(Number(it.calories)||0));
+        entries.push({name:String(it.name||'food').slice(0,80),calories:cal});
+      });
+      render();
+      transcriptEl.innerHTML='';finalText='';
+      if(parsed.suggestions){
+        suggestEl.classList.remove('hidden');
+        suggestEl.innerHTML='<div class="h">🌿 To fit the rest of your day</div>'+escapeHtml(parsed.suggestions);
+      }
+    }
+  }catch(err){
+    voiceErr.textContent='Couldn\u2019t estimate that just now — please try again.';
+  }finally{
+    logBtn.disabled=false;logBtn.textContent='Log this food →';
+  }
+});
+
+if(!SR){voiceErr.textContent='Heads up: this browser doesn\u2019t support voice typing — you can type into the box. (Chrome or Edge support voice.)';}
+render();
+</script>
+</body>
+</html>
