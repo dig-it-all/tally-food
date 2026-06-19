@@ -6,7 +6,7 @@ address, for free. No coding required. Plan about 15 minutes the first time.
 You will do three things:
 1. Get an Anthropic API key (the "fuel" for the AI estimates).
 2. Upload this folder to a free host called **Vercel**.
-3. Paste your key into Vercel's settings.
+3. Next Paste your key into Vercel's settings.
 
 That's it. After that, every time you want changes, I can hand you an updated folder.
 
